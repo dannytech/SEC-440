@@ -1,0 +1,136 @@
+---
+- hosts: all
+  tasks:
+  # include the ZeroTier network and hub IP
+  - include_vars: secrets.yml
+
+  # join ZeroTier network
+  - win_chocolatey:
+      name: zerotier-one
+      state: present
+  - win_command: ".\\zerotier-cli.bat join {{ network }}"
+    args:
+      chdir: "C:\\Program Files (x86)\\ZeroTier\\One\\"
+      creates: "C:\\ProgramData\\ZeroTier\\One\\networks.d\\{{ network }}.conf"
+
+  # create a working directory
+  - win_file:
+      path: "C:\\Selenium{{ item }}"
+      state: directory
+    loop:
+    - "\\"
+    - "\\drivers\\"
+
+  # download Chrome and Chrome webdriver
+  - local_action:
+      module: uri
+      url: https://chromedriver.storage.googleapis.com/LATEST_RELEASE
+      return_content: true
+    run_once: true
+    register: chrome_version
+  - win_get_url:
+      url: "https://chromedriver.storage.googleapis.com/{{ chrome_version.content }}/chromedriver_win32.zip"
+      dest: &chromezip "C:\\Selenium\\drivers\\chromedriver.zip"
+  - win_unzip:
+      src: *chromezip
+      dest: "C:\\Selenium\\drivers\\chromedriver\\"
+
+  - win_chocolatey:
+      name: googlechrome
+      # TODO Specify Chrome version
+      # version: "{{ chrome_version.content }}" # ignored by googlechrome package
+      state: present
+
+  # TODO Add AVG
+  # download AVG Secure Browser
+  # - win_get_url:
+
+  # download Edge and Edge webdriver
+  - local_action:
+      module: shell
+      cmd: curl https://msedgewebdriverstorage.blob.core.windows.net/edgewebdriver/LATEST_STABLE | iconv -f UTF-16LE -t ASCII//TRANSLIT # have to convert because API returns UTF-16LE for no reason
+    run_once: true
+    register: edge_version
+  - win_get_url:
+      url: "https://msedgedriver.azureedge.net/{{ edge_version.stdout }}/edgedriver_win64.zip"
+      dest: &edgezip "C:\\Selenium\\drivers\\edgedriver.zip"
+  - win_unzip:
+      src: *edgezip
+      dest: "C:\\Selenium\\drivers\\edgedriver\\"
+
+  - win_chocolatey:
+      name: microsoft-edge
+      version: "{{ edge_version.stdout }}"
+      state: present
+
+  # download Firefox and Gecko webdirver
+  - local_action:
+      module: uri
+      url: https://api.github.com/repos/mozilla/geckodriver/releases/latest
+      return_content: true
+    run_once: true
+    register: gecko_version
+  - win_get_url:
+      url: "https://github.com/mozilla/geckodriver/releases/download/{{ gecko_version.json.tag_name }}/geckodriver-{{ gecko_version.json.tag_name }}-win64.zip"
+      dest: &geckozip "C:\\Selenium\\drivers\\geckodriver.zip"
+  - win_unzip:
+      src: *geckozip
+      dest: "C:\\Selenium\\drivers\\geckodriver\\"
+
+  - win_chocolatey:
+      name: firefox
+      state: present
+
+  # # download Java
+  - win_chocolatey:
+      name: openjdk
+      state: present
+
+  # download Selenium
+  - local_action:
+      module: uri
+      url: https://api.github.com/repos/SeleniumHQ/selenium/releases/latest
+      return_content: true
+    run_once: true
+    register: selenium_version
+  - win_get_url:
+      url: "https://github.com/SeleniumHQ/selenium/releases/download/{{ selenium_version.json.tag_name }}/selenium-server-{{ selenium_version.json.tag_name[9:] }}.jar"
+      dest: "C:\\Selenium\\selenium-server.jar"
+
+  # download nssm
+  - win_chocolatey:
+      name: nssm
+      state: present
+
+  # TODO Switch to a TOML config file instead of this messy CLI
+  # create a new service
+  - win_nssm:
+      name: Selenium Grid
+      state: present
+      application: "C:\\Program Files\\OpenJDK\\jdk-18\\bin\\java.exe"
+      arguments: "%java_opts% -jar C:\\Selenium\\selenium-server.jar %selenium_grid_role% %selenium_grid_args%"
+      stdout_file: "C:\\Selenium\\selenium-server.out.log"
+      stderr_file: "C:\\Selenium\\selenium-server.err.log"
+      app_environment:
+        JAVA_OPTS: "{% for driver in drivers %}-Dwebdriver.{{ driver.driver }}.driver={{ driver.path }} {% endfor %}"
+        SELENIUM_GRID_ROLE: node
+        SELENIUM_GRID_ARGS: "--hub http://{{ hub }}/grid/register --detect-drivers false{% for driver in drivers %} --driver-configuration display-name={{ driver.friendly }} max-sessions=1 stereotype={\\\"browserName\\\":\\\"{{ driver.browser }}\\\"}{% endfor %}"
+    vars:
+      drivers:
+      - browser: chrome
+        driver: chrome
+        friendly: Chrome
+        path: "C:\\Selenium\\drivers\\chromedriver\\chromedriver.exe"
+      - browser: msedge
+        driver: msedge
+        friendly: Edge
+        path: "C:\\Selenium\\drivers\\edgedriver\\msedgedriver.exe"
+      - browser: firefox
+        driver: gecko
+        friendly: Firefox
+        path: "C:\\Selenium\\drivers\\geckodriver\\geckodriver.exe"
+
+  # start Selenium Grid
+  - win_nssm:
+      name: Selenium Grid
+      state: started
