@@ -53,9 +53,14 @@
       name: googlechrome
       state: latest
 
-  # TODO Add AVG
   # download AVG Secure Browser
-  # - win_get_url:
+  - win_get_url:
+      url: https://cdn-download.avgbrowser.com/avg/avg_secure_browser_setup.exe
+      dest: "C:\\Selenium\\avg.exe"
+
+  # can't be installed automatically
+  - debug:
+      msg: "The AVG installer has been downloaded to C:\\Selenium\\avg.exe"
 
   # download Edge and Edge webdriver
   - local_action:
