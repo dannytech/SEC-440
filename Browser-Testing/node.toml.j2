@@ -1,0 +1,11 @@
+[node]
+detect-drivers = false
+
+{% for driver in drivers %}
+[[node.driver-configuration]]
+display-name = "{{ driver.friendly }}"
+driver-path = "{{ driver.path | replace("\\", "\\\\") }}"
+stereotype = '{"browserName": "{{ driver.browser }}"}'
+max-sessions = 1
+
+{% endfor %}

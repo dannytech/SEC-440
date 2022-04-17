@@ -1,5 +1,19 @@
 ---
 - hosts: all
+  vars:
+    drivers:
+    - browser: chrome
+      driver: chrome
+      friendly: Chrome
+      path: "C:\\Selenium\\drivers\\chromedriver\\chromedriver.exe"
+    - browser: msedge
+      driver: msedge
+      friendly: Edge
+      path: "C:\\Selenium\\drivers\\edgedriver\\msedgedriver.exe"
+    - browser: firefox
+      driver: gecko
+      friendly: Firefox
+      path: "C:\\Selenium\\drivers\\geckodriver\\geckodriver.exe"
   tasks:
   # include the ZeroTier network and hub IP
   - include_vars: secrets.yml
@@ -102,6 +116,11 @@
       name: nssm
       state: present
 
+  # generate configuration
+  - win_template:
+      src: node.toml.j2
+      dest: "C:\\Selenium\\selenium.toml"
+
   # TODO Switch to a TOML config file instead of this messy CLI
   # create a new service
   - win_nssm:
@@ -114,21 +133,7 @@
       app_environment:
         JAVA_OPTS: "{% for driver in drivers %}-Dwebdriver.{{ driver.driver }}.driver={{ driver.path }} {% endfor %}"
         SELENIUM_GRID_ROLE: node
-        SELENIUM_GRID_ARGS: "--hub http://{{ hub }}/grid/register --detect-drivers false{% for driver in drivers %} --driver-configuration display-name={{ driver.friendly }} max-sessions=1 stereotype={\\\"browserName\\\":\\\"{{ driver.browser }}\\\"}{% endfor %}"
-    vars:
-      drivers:
-      - browser: chrome
-        driver: chrome
-        friendly: Chrome
-        path: "C:\\Selenium\\drivers\\chromedriver\\chromedriver.exe"
-      - browser: msedge
-        driver: msedge
-        friendly: Edge
-        path: "C:\\Selenium\\drivers\\edgedriver\\msedgedriver.exe"
-      - browser: firefox
-        driver: gecko
-        friendly: Firefox
-        path: "C:\\Selenium\\drivers\\geckodriver\\geckodriver.exe"
+        SELENIUM_GRID_ARGS: "--hub http://{{ hub }}/grid/register --config C:\\Selenium\\selenium.toml"
 
   # start Selenium Grid
   - win_nssm:
