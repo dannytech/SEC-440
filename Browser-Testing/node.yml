@@ -138,4 +138,5 @@
   # start Selenium Grid
   - win_nssm:
       name: Selenium Grid
-      state: started
+      application: "C:\\Program Files\\OpenJDK\\jdk-18\\bin\\java.exe"
+      state: restarted
