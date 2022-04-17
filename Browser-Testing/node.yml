@@ -51,9 +51,7 @@
 
   - win_chocolatey:
       name: googlechrome
-      # TODO Specify Chrome version
-      # version: "{{ chrome_version.content }}" # ignored by googlechrome package
-      state: present
+      state: latest
 
   # TODO Add AVG
   # download AVG Secure Browser
