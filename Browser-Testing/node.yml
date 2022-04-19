@@ -6,8 +6,8 @@
       driver: chrome
       friendly: Chrome
       path: "C:\\Selenium\\drivers\\chromedriver\\chromedriver.exe"
-    - browser: msedge
-      driver: msedge
+    - browser: MicrosoftEdge
+      driver: edge
       friendly: Edge
       path: "C:\\Selenium\\drivers\\edgedriver\\msedgedriver.exe"
     - browser: firefox
@@ -34,6 +34,13 @@
     loop:
     - "\\"
     - "\\drivers\\"
+    - "\\profiles\\"
+
+  # create profile directories
+  - win_file:
+      path: "C:\\Selenium\\profiles\\{{ item.friendly }}"
+      state: directory
+    loop: "{{ drivers }}"
 
   # download Chrome and Chrome webdriver
   - local_action:
