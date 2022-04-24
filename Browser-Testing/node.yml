@@ -108,6 +108,7 @@
   # # download Java
   - win_chocolatey:
       name: openjdk
+      version: 18.0.0
       state: present
 
   # download Selenium
