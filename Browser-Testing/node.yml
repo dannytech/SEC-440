@@ -87,7 +87,7 @@
       version: "{{ edge_version.stdout }}"
       state: present
 
-  # download Firefox and Gecko webdirver
+  # download Firefox and Gecko webdriver
   - local_action:
       module: uri
       url: https://api.github.com/repos/mozilla/geckodriver/releases/latest
