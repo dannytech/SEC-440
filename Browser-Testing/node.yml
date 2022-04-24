@@ -131,8 +131,8 @@
   - win_template:
       src: node.toml.j2
       dest: "C:\\Selenium\\selenium.toml"
+    register: config_update
 
-  # TODO Switch to a TOML config file instead of this messy CLI
   # create a new service
   - win_nssm:
       name: Selenium Grid
@@ -145,9 +145,11 @@
         JAVA_OPTS: "{% for driver in drivers %}-Dwebdriver.{{ driver.driver }}.driver={{ driver.path }} {% endfor %}"
         SELENIUM_GRID_ROLE: node
         SELENIUM_GRID_ARGS: "--config C:\\Selenium\\selenium.toml"
+    register: service_registration
 
   # start Selenium Grid
   - win_nssm:
       name: Selenium Grid
       application: "C:\\Program Files\\OpenJDK\\jdk-18\\bin\\java.exe"
       state: restarted
+    when: config_update.changed or service_registration.changed
