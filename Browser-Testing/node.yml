@@ -147,6 +147,9 @@
         SELENIUM_GRID_ARGS: "--config C:\\Selenium\\selenium.toml"
     register: service_registration
 
+  # virtual service account
+  - win_command: nssm set "Selenium Grid" ObjectName "NT Service\Selenium Grid"
+
   # start Selenium Grid
   - win_nssm:
       name: Selenium Grid
