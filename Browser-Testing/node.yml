@@ -15,20 +15,27 @@
       friendly: Firefox
       path: "C:\\Selenium\\drivers\\geckodriver\\geckodriver.exe"
   tasks:
-  # include the ZeroTier network and hub IP
+  # includes the ZeroTier network and hub IP
   - include_vars: secrets.yml
 
-  # join ZeroTier network
-  - win_chocolatey:
-      name: zerotier-one
-      state: present
-  - win_command: ".\\zerotier-cli.bat join {{ network }}"
-    args:
-      chdir: "C:\\Program Files (x86)\\ZeroTier\\One\\"
-      creates: "C:\\ProgramData\\ZeroTier\\One\\networks.d\\{{ network }}.conf"
+  - block:
+    # installs ZeroTier
+    - name: Install ZeroTier One
+      win_chocolatey:
+        name: zerotier-one
+        state: present
 
-  # create a working directory
-  - win_file:
+    # joins ZeroTier network
+    - name: Join ZeroTier network
+      win_command: ".\\zerotier-cli.bat join {{ network }}"
+      args:
+        chdir: "C:\\Program Files (x86)\\ZeroTier\\One\\"
+        creates: "C:\\ProgramData\\ZeroTier\\One\\networks.d\\{{ network }}.conf"
+    when: network is defined
+
+  # creates a working directory
+  - name: Create a directory for Selenium
+    win_file:
       path: "C:\\Selenium{{ item }}"
       state: directory
     loop:
@@ -36,100 +43,117 @@
     - "\\drivers\\"
     - "\\profiles\\"
 
-  # create profile directories
-  - win_file:
+  # creates profile directories
+  - name: Create empty profiles for each browser
+    win_file:
       path: "C:\\Selenium\\profiles\\{{ item.friendly }}"
       state: directory
     loop: "{{ drivers }}"
 
-  # download Chrome and Chrome webdriver
-  - local_action:
+  # downloads Chrome and Chrome webdriver
+  - name: Get the latest Chrome Webdriver version
+    local_action:
       module: uri
       url: https://chromedriver.storage.googleapis.com/LATEST_RELEASE
       return_content: true
     run_once: true
     register: chrome_version
-  - win_get_url:
+  - name: Download Chrome Webdriver
+    win_get_url:
       url: "https://chromedriver.storage.googleapis.com/{{ chrome_version.content }}/chromedriver_win32.zip"
       dest: &chromezip "C:\\Selenium\\drivers\\chromedriver.zip"
-  - win_unzip:
+  - name: Extract Chrome Webdriver
+    win_unzip:
       src: *chromezip
       dest: "C:\\Selenium\\drivers\\chromedriver\\"
 
-  - win_chocolatey:
+  # installs latest version of Chrome (will be compatible with the most recent driver, even if it's a little old)
+  - name: Install Chrome
+    win_chocolatey:
       name: googlechrome
       state: latest
 
-  # can't be installed automatically
-  - debug:
-      msg: "The AVG installer has been downloaded to C:\\Selenium\\avg.exe"
-
-  # download Edge and Edge webdriver
-  - local_action:
+  # downloads Edge and Edge webdriver
+  - name: Get the latest Edge Webdriver version
+    local_action:
       module: shell
       cmd: curl https://msedgewebdriverstorage.blob.core.windows.net/edgewebdriver/LATEST_STABLE | iconv -f UTF-16LE -t ASCII//TRANSLIT # have to convert because API returns UTF-16LE for no reason
     run_once: true
     register: edge_version
-  - win_get_url:
+  - name: Download Edge Webdriver
+    win_get_url:
       url: "https://msedgedriver.azureedge.net/{{ edge_version.stdout }}/edgedriver_win64.zip"
       dest: &edgezip "C:\\Selenium\\drivers\\edgedriver.zip"
-  - win_unzip:
+  - name: Extract Edge Webdriver
+    win_unzip:
       src: *edgezip
       dest: "C:\\Selenium\\drivers\\edgedriver\\"
 
-  - win_chocolatey:
+  # installs the latest version of Edge (there are compatible driver versions for each release)
+  - name: Install Edge
+    win_chocolatey:
       name: microsoft-edge
-      version: "{{ edge_version.stdout }}"
-      state: present
+      state: latest
 
-  # download Firefox and Gecko webdriver
-  - local_action:
+  # downloads Firefox and Gecko webdriver
+  - name: Get the latest Gecko Webdriver version
+    local_action:
       module: uri
       url: https://api.github.com/repos/mozilla/geckodriver/releases/latest
       return_content: true
     run_once: true
     register: gecko_version
-  - win_get_url:
+  - name: Download Gecko Webdriver
+    win_get_url:
       url: "https://github.com/mozilla/geckodriver/releases/download/{{ gecko_version.json.tag_name }}/geckodriver-{{ gecko_version.json.tag_name }}-win64.zip"
       dest: &geckozip "C:\\Selenium\\drivers\\geckodriver.zip"
-  - win_unzip:
+  - name: Extract Edge Webdriver
+    win_unzip:
       src: *geckozip
       dest: "C:\\Selenium\\drivers\\geckodriver\\"
 
-  - win_chocolatey:
+  # installs the latest version of Firefox (compatible with most versions of driver)
+  - name: Install Firefox
+    win_chocolatey:
       name: firefox
       state: present
 
-  # # download Java
-  - win_chocolatey:
+  # downloads Java
+  - name: Install OpenJDK
+    win_chocolatey:
       name: openjdk
       version: 18.0.0
       state: present
 
-  # download Selenium
-  - local_action:
+  # downloads Selenium
+  - name: Get the latest Selenium version
+    local_action:
       module: uri
       url: https://api.github.com/repos/SeleniumHQ/selenium/releases/latest
       return_content: true
     run_once: true
     register: selenium_version
-  - win_get_url:
+  - name: Download Selenium Server
+    win_get_url:
       url: "https://github.com/SeleniumHQ/selenium/releases/download/{{ selenium_version.json.tag_name }}/selenium-server-{{ selenium_version.json.tag_name[9:] }}.jar"
       dest: "C:\\Selenium\\selenium-server.jar"
 
-  # download nssm
-  - win_chocolatey:
+  # installs nssm
+  - name: Install NSSM
+    win_chocolatey:
       name: nssm
       state: present
 
-  # generate configuration
-  - win_template:
+  # generates TOML-based configuration
+  - name: Generate the Selenium Grid configuration
+    win_template:
       src: node.toml.j2
       dest: "C:\\Selenium\\selenium.toml"
     register: config_update
 
-  # create a new service
-  - win_nssm:
+  # creates a new service
+  - name: Create Windows service
+    win_nssm:
       name: Selenium Grid
       state: present
       application: "C:\\Program Files\\OpenJDK\\jdk-18\\bin\\java.exe"
@@ -143,17 +167,20 @@
     register: service_registration
 
   # virtual service account
-  - win_command: nssm set "Selenium Grid" ObjectName "NT Service\Selenium Grid"
+  - name: Switch service to service account
+    win_command: nssm set "Selenium Grid" ObjectName "NT Service\Selenium Grid"
 
-  # start Selenium Grid
-  - win_nssm:
+  # restarts Selenium Grid
+  - name: Start/restart Selenium Grid
+    win_nssm:
       name: Selenium Grid
       application: "C:\\Program Files\\OpenJDK\\jdk-18\\bin\\java.exe"
       state: restarted
     when: config_update.changed or service_registration.changed
 
   # firewall exception for Selenium node
-  - win_firewall_rule:
+  - name: Allow incoming Selenium connections
+    win_firewall_rule:
       name: Selenium Grid
       localport: 5555
       action: allow
