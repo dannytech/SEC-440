@@ -156,3 +156,13 @@
       application: "C:\\Program Files\\OpenJDK\\jdk-18\\bin\\java.exe"
       state: restarted
     when: config_update.changed or service_registration.changed
+
+  # firewall exception for Selenium node
+  - win_firewall_rule:
+      name: Selenium Grid
+      localport: 5555
+      action: allow
+      direction: in
+      protocol: tcp
+      state: present
+      enabled: true
