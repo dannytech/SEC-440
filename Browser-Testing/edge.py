@@ -2,6 +2,8 @@
 
 import sys
 import csv
+import time
+import datetime
 
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
@@ -142,9 +144,14 @@ if __name__ == "__main__":
     # asynchronously write the results
     saver = io.apply_async(save, args=(oqueue,))
 
+    # start of the actual processing
+    start = time.monotonic()
+
     # add workers
     workers.starmap(detect, ((iqueue, oqueue),) * concurrency)
     print("Workers exited successfully.")
+
+    end = time.monotonic()
 
     # consume the leftover sentinel value once all threads have exited
     iqueue.get()
@@ -158,3 +165,4 @@ if __name__ == "__main__":
 
     print("Processing completed successfully!")
     print(f"Processed: {imported}, Detected: {detected}")
+    print(f"Completed in", datetime.timedelta(seconds=end - start))
