@@ -6,7 +6,7 @@ import time
 import datetime
 
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, UnexpectedAlertPresentException
 from multiprocessing import Manager, Pool
 
 urls = sys.argv[1]
@@ -16,7 +16,7 @@ concurrency = int(sys.argv[3])
 imported = 0
 detected = 0
 
-def load(queue, col):
+def load(queue, col, concurrency):
     # load dataset
     print("Loading URLs...")
     with open(urls, "r") as f:
@@ -27,8 +27,9 @@ def load(queue, col):
             if not entry[0].startswith("#"): # ignore comments
                 queue.put(entry[col])
 
-    # sentinel value to terminate processing
-    queue.put(None)
+    # sentinel values to terminate processing
+    for _ in range(concurrency):
+        queue.put_nowait(None)
 
     # wait for all URLs to be processed and terminate this thread
     queue.join()
@@ -105,24 +106,40 @@ def detect(iqueue, oqueue):
 
         # if all tasks have been marked complete, stop processing
         if url is None:
-            print("Detected sentinel, passing it on and exiting...")
+            print("Detected sentinel, exiting worker...")
 
-            iqueue.put(None) # re-add the sentinel value for other threads
             iqueue.task_done()
 
             break
 
         print("Requesting page...")
+        print(f"URL: {url}")
         try:
             browser.get(url)
+        except UnexpectedAlertPresentException:
+            iqueue.task_done()
+
+            print("Was shown an alert, assuming that the page successfully loaded.")
+
+            # if an alert was shown, then the page must have loaded
+            oqueue.put((url, False))
+
+            continue
         except WebDriverException as err:
-            # ignore timed-out pages
+            iqueue.task_done()
+
+            oqueue.put((url, None))
+
+            # log timed-out and errored pages
             if "CONNECTION_TIMED_OUT" in err.msg:
-                oqueue.put((url, None))
-                continue
+                print("Timed out.")
+            else:
+                print("Errored out:", err.msg)
+
+            continue
 
         # get information about the visited page
-        print("Testing for alert...")
+        print("Testing for block...")
         origin = browser.execute_script("return window.origin")
         oqueue.put((url, origin == "null")) # write the result to be saved
 
@@ -144,7 +161,7 @@ if __name__ == "__main__":
     oqueue = manager.Queue()
 
     # asynchronously read the URL list
-    loader = io.apply_async(load, args=(iqueue, col))
+    loader = io.apply_async(load, args=(iqueue, col, concurrency))
 
     # asynchronously write the results
     saver = io.apply_async(save, args=(oqueue,))
@@ -157,10 +174,6 @@ if __name__ == "__main__":
     print("Workers exited successfully.")
 
     end = time.monotonic()
-
-    # consume the leftover sentinel value once all threads have exited
-    iqueue.get()
-    iqueue.task_done()
 
     # sentinel value to close the output file
     oqueue.put(None)
