@@ -133,6 +133,8 @@ def detect(iqueue, oqueue):
             # log timed-out and errored pages
             if "CONNECTION_TIMED_OUT" in err.msg:
                 print("Timed out.")
+            elif "NAME_NOT_RESOLVED" in err.msg:
+                print("Name resolution failed.")
             else:
                 print("Errored out:", err.msg)
 
