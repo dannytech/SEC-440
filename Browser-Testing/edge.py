@@ -39,7 +39,7 @@ def save(queue):
     # counters
     processed = 0
     detected = 0
-    timeout = 0
+    errored = 0
 
     # save results as they come in
     print("Saving output to file...")
@@ -63,21 +63,22 @@ def save(queue):
             processed += 1
 
             # flush the file to the disk every 10 lines
-            if processed % 10 == 0:
+            if processed % 100 == 0:
+                print(f"Processed {processed} so far.")
                 f.flush()
 
             # count detected items
             if result[1]:
                 detected += 1
             elif result[1] is None:
-                timeout += 1
+                errored += 1
 
             # this result was processed
             queue.task_done()
 
     print("Finished writing results.")
 
-    return (processed, detected, timeout)
+    return (processed, detected, errored)
 
 def instance():
     # create a new Chromium Edge configuration
@@ -165,8 +166,8 @@ if __name__ == "__main__":
     oqueue.put(None)
 
     # get the statistics
-    imported, detected, timeout = saver.get()
+    imported, detected, errored = saver.get()
 
     print("Processing completed successfully!")
-    print(f"Processed: {imported}, Detected: {detected}, Timed Out: {timeout}")
+    print(f"Processed: {imported}, Detected: {detected}, Errored: {errored}")
     print(f"Completed in", datetime.timedelta(seconds=end - start))
