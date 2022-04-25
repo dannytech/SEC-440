@@ -34,12 +34,14 @@ def load(queue, col):
     print("Finished reading dataset, and sent sentinel.")
 
 def save(queue):
+    # counters
+    processed = 0
+    detected = 0
+
     # save results as they come in
     print("Saving output to file...")
     with open("output.csv", "w") as f:
         writer = csv.writer(f)
-
-        i = 0
 
         while True:
             result = queue.get()
@@ -55,16 +57,22 @@ def save(queue):
             # write the results to a file
             print("Writing new result...")
             writer.writerow(result)
-            i += 1
+            processed += 1
 
             # flush the file to the disk every 10 lines
-            if i % 10 == 0:
+            if processed % 10 == 0:
                 f.flush()
+
+            # count detected items
+            if result[1]:
+                detected += 1
 
             # this result was processed
             queue.task_done()
 
     print("Finished writing results.")
+
+    return (processed, detected)
 
 def instance():
     # create a new Chromium Edge configuration
@@ -145,4 +153,8 @@ if __name__ == "__main__":
     # sentinel value to close the output file
     oqueue.put(None)
 
+    # get the statistics
+    imported, detected = saver.get()
+
     print("Processing completed successfully!")
+    print(f"Processed: {imported}, Detected: {detected}")
