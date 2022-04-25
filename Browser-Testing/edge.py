@@ -39,6 +39,7 @@ def save(queue):
     # counters
     processed = 0
     detected = 0
+    timeout = 0
 
     # save results as they come in
     print("Saving output to file...")
@@ -68,13 +69,15 @@ def save(queue):
             # count detected items
             if result[1]:
                 detected += 1
+            elif result[1] is None:
+                timeout += 1
 
             # this result was processed
             queue.task_done()
 
     print("Finished writing results.")
 
-    return (processed, detected)
+    return (processed, detected, timeout)
 
 def instance():
     # create a new Chromium Edge configuration
@@ -112,8 +115,9 @@ def detect(iqueue, oqueue):
         try:
             browser.get(url)
         except WebDriverException as err:
-            # assume timed-out pages were not blocked
+            # ignore timed-out pages
             if "CONNECTION_TIMED_OUT" in err.msg:
+                oqueue.put((url, None))
                 continue
 
         # get information about the visited page
@@ -161,8 +165,8 @@ if __name__ == "__main__":
     oqueue.put(None)
 
     # get the statistics
-    imported, detected = saver.get()
+    imported, detected, timeout = saver.get()
 
     print("Processing completed successfully!")
-    print(f"Processed: {imported}, Detected: {detected}")
+    print(f"Processed: {imported}, Detected: {detected}, Timed Out: {timeout}")
     print(f"Completed in", datetime.timedelta(seconds=end - start))
