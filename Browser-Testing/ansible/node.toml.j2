@@ -6,7 +6,11 @@ detect-drivers = false
 [[node.driver-configuration]]
 display-name = "{{ driver.friendly }}"
 driver-path = "{{ driver.path | replace("\\", "\\\\") }}"
+{% if "binary" in driver %}
+stereotype = '{"browserName": "{{ driver.browser }}","goog:chromeOptions":{"binary":"{{ driver.binary | replace("\\", "\\\\") }}"}}'
+{% else %}
 stereotype = '{"browserName": "{{ driver.browser }}"}'
+{% endif %}
 max-sessions = 1
 
 {% endfor %}

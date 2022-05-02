@@ -14,6 +14,11 @@
       driver: gecko
       friendly: Firefox
       path: "C:\\Selenium\\drivers\\geckodriver\\geckodriver.exe"
+    - browser: chrome
+      driver: chrome
+      friendly: AVG
+      path: "C:\\Selenium\\drivers\\chromedriver\\avgdriver.exe"
+      binary: "C:\\Program Files (x86)\\AVG\\Browser\\Application\\AVGBrowser.exe"
   tasks:
   # includes the ZeroTier network and hub IP
   - include_vars: secrets.yml
