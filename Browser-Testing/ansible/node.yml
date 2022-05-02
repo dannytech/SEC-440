@@ -71,6 +71,7 @@
   - name: Install Chrome
     win_chocolatey:
       name: googlechrome
+      ignore_checksums: true # chocolatey lags behind the installer versions, so the hashes may not match
       state: latest
 
   # downloads Edge and Edge webdriver
