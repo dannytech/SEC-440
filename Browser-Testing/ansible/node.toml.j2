@@ -1,6 +1,8 @@
 [node]
 hub = "http://{{ hub }}:4444/grid/register"
 detect-drivers = false
+max-sessions = {{ drivers | length }}
+override-max-sessions = true
 
 {% for driver in drivers %}
 [[node.driver-configuration]]
