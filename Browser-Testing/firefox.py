@@ -10,8 +10,9 @@ from selenium.common.exceptions import WebDriverException, UnexpectedAlertPresen
 from multiprocessing import Manager, Pool
 
 urls = sys.argv[1]
-col = int(sys.argv[2])
-concurrency = int(sys.argv[3])
+output = sys.argv[2]
+col = int(sys.argv[3])
+concurrency = int(sys.argv[4])
 
 imported = 0
 detected = 0
@@ -37,7 +38,7 @@ def load(queue, col, concurrency):
 
     print("Finished reading dataset, and sent sentinel.")
 
-def save(queue):
+def save(queue, output):
     # counters
     processed = 0
     detected = 0
@@ -45,7 +46,7 @@ def save(queue):
 
     # save results as they come in
     print("Saving output to file...")
-    with open("output.csv", "w") as f:
+    with open(output, "w") as f:
         writer = csv.writer(f)
 
         while True:
@@ -172,7 +173,7 @@ if __name__ == "__main__":
     loader = io.apply_async(load, args=(iqueue, col, concurrency))
 
     # asynchronously write the results
-    saver = io.apply_async(save, args=(oqueue,))
+    saver = io.apply_async(save, args=(oqueue, output))
 
     # start of the actual processing
     start = time.monotonic()
